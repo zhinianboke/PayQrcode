@@ -47,4 +47,4 @@
 - 支付宝码在微信码上的覆盖比例（建议初始比例：30%-40% 面积占比）​
 - 旋转角度（±10° 微调，寻找最佳识别平衡点）​
 
-**具体使用请查看文档**：http://vvhan.com/article/new-two-code-physical-merge
+**具体使用请查看文档**：http://vvhan.com/article/new-pay-qrcode
