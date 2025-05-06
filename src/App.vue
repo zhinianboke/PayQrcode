@@ -9,6 +9,24 @@
     </section>
   </header>
   <main>
+    <t-space direction="vertical">
+      <t-alert
+        theme="success"
+        message="物理合并，直接将 图片合并成一张图片，无需服务器，不怕被篡改，可打印使用，稳定，绿色，安全！"
+      />
+      <t-alert theme="info" message="开源地址：">
+        <template #operation>
+          <t-link
+            theme="primary"
+            underline
+            href="https://github.com/uxiaohan/PayQrcode"
+            target="_blank"
+          >
+            PayQrcode
+          </t-link>
+        </template>
+      </t-alert>
+    </t-space>
     <Main />
   </main>
 </template>
