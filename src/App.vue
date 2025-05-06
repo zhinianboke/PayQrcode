@@ -16,7 +16,7 @@
       />
       <t-alert theme="info">
         <template #message>
-          开源地址：
+          开源：
           <t-link
             theme="primary"
             underline
