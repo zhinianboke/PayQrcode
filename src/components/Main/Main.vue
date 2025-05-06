@@ -1,80 +1,128 @@
 <template>
-  <main class="w-full pt-6 flex flex-col">
-    <header class="flex justify-between gap-[10%] h-max shrink-0">
-      <div class="w-full flex flex-col gap-[10px]">
-        <section
-          class="relative w-full h-[118px] border rounded-md flex items-center justify-center"
-        >
-          <Label class="opacity-[0.8]">+ 支付宝收款码</Label>
-          <Input
-            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-            type="file"
-            accept="image/*"
-            @change="alipayChange"
+  <header>
+    <section class="upload-list">
+      <div class="item">
+        <t-input-adornment>
+          <template #append>
+            <t-upload
+              accept="image/*"
+              :showUploadProgress="false"
+              :useMockProgress="false"
+              :autoUpload="false"
+              theme="custom"
+              :onChange="alipayChange"
+              :trigger-button-props="{ theme: 'primary', variant: 'base' }"
+            />
+          </template>
+          <t-input
+            :status="alipayVal ? 'success' : ''"
+            readonly
+            v-model="alipayVal"
+            placeholder="请上传 支付宝 收款码"
           />
-        </section>
-        <Input v-model="alipayVal" readonly type="text" placeholder="支付宝收款码待上传..." />
+        </t-input-adornment>
       </div>
-      <div class="w-full flex flex-col gap-[10px]">
-        <section
-          class="relative w-full h-[118px] border rounded-md flex items-center justify-center"
-        >
-          <Label class="opacity-[0.8]">+ 微信收款码</Label>
-          <Input
-            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-            type="file"
-            accept="image/*"
-            @change="wechatChange"
+      <div class="item">
+        <t-input-adornment>
+          <template #append>
+            <t-upload
+              accept="image/*"
+              :showUploadProgress="false"
+              :useMockProgress="false"
+              :autoUpload="false"
+              theme="custom"
+              :onChange="wechatChange"
+              :trigger-button-props="{ theme: 'success', variant: 'base' }"
+            />
+          </template>
+          <t-input
+            :status="wechatVal ? 'success' : ''"
+            readonly
+            v-model="wechatVal"
+            placeholder="请上传 微信 收款码"
           />
-        </section>
-        <Input v-model="wechatVal" readonly type="text" placeholder="微信收款码待上传..." />
+        </t-input-adornment>
       </div>
-    </header>
-    <div class="flex-1 flex pt-6" ref="qrcodeDom" @click="saveQrcode">
-      <div class="relative w-full h-auto bg-[url('bg.png')] bg-no-repeat bg-contain bg-center">
-        <QrCode
-          class="w-auto"
-          value="wxp://f2f0pdhzZ5T5Yt-nibaEs8QQVByuwn1Kkp7KKL8scTsDxwo"
-          level="H"
-          render-as="svg"
-        />
-        <QrCode
-          value="https://qr.alipay.com/fkx13481winzch0wgpn2ada?t=1745975720083"
-          render-as="svg"
-        />
+      <div class="item flex">
+        <span class="title">美化</span>
+        <t-switch v-model="themeStatus" />
       </div>
+    </section>
+    <t-card class="alipay-hide">
+      <span class="title">缺省比例</span>
+      <t-slider v-model="qrHideSize" :onChange="alipayHideChange" />
+    </t-card>
+  </header>
+  <main :class="{ show: wechatQrcodeImg && alipayQrcodeImg }">
+    <div class="qr-main" :class="{ nobg: !themeStatus }" ref="qrcodeDom">
+      <img class="wechat-qr" :src="wechatQrcodeImg" />
+      <img class="alipay-qr" :src="alipayQrcodeImg" />
     </div>
+    <t-button theme="success" class="download-qrcode" :onClick="downloadQrcode">
+      下载二维码
+    </t-button>
   </main>
 </template>
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import html2canvas from 'html2canvas'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import jsQR from 'jsqr'
-import vh from 'vh-plugin'
+import QrCode from 'qrcode'
+import { NotifyPlugin } from 'tdesign-vue-next'
+
+//  是否美化
+const themeStatus = ref<boolean>(false)
 
 //  上传支付宝收款码
-const alipayVal = ref<string>()
-const alipayChange = async (v: Event) => {
-  alipayVal.value = ''
-  const res = await loadImg(v.target)
-  if (!res || !String(res).includes('alipay.com')) return vh.Toast('请上传正确的 支付宝 收款码')
+const alipayFileList = ref<any>()
+const alipayVal = ref<any>()
+const alipayQrcodeImg = ref<string>()
+const alipayChange = async (v: any) => {
+  alipayFileList.value = v && v.length ? v[0].raw : alipayFileList.value
+  if (!alipayFileList.value) return
+  const res = await loadImg(alipayFileList.value)
+  if (!res || !String(res).includes('alipay.com'))
+    return NotifyPlugin.error({
+      title: 'Error',
+      content: '请上传正确的 支付宝 收款码',
+    })
   alipayVal.value = String(res)
+  alipayQrcodeImg.value = await drawQR(alipayVal.value, true)
+  showQrcode()
 }
 
 // 上传微信
-const wechatVal = ref<string>()
-const wechatChange = async (v: Event) => {
-  wechatVal.value = ''
-  const res = await loadImg(v.target)
-  if (!res || !String(res).includes('wxp://')) return vh.Toast('请上传正确的 微信 收款码')
+const wechatFileList = ref<any>()
+const wechatVal = ref<any>()
+const wechatQrcodeImg = ref<string>()
+const wechatChange = async (v: any) => {
+  wechatFileList.value = v && v.length ? v[0].raw : wechatFileList.value
+  if (!wechatFileList.value) return
+  const res = await loadImg(wechatFileList.value)
+  if (!res || !String(res).includes('wxp://'))
+    return NotifyPlugin.error({
+      title: 'Error',
+      content: '请上传正确的 微信 收款码',
+    })
   wechatVal.value = String(res)
+  wechatQrcodeImg.value = await drawQR(wechatVal.value)
+  showQrcode()
+}
+
+// 支付宝隐藏比例
+const qrHideSize = ref<number>(50)
+const alipayHideChange = (v: any) => {
+  qrHideSize.value = v
+  alipayChange(null)
+}
+
+// 生成二维码
+const showQrcode = async () => {
+  if (!alipayQrcodeImg.value || !wechatQrcodeImg.value) return
 }
 
 // 加载图片
-const loadImg = (v: any) => {
-  const file = v.files[0]
+const loadImg = (file: any) => {
   if (!file) return
   const reader = new FileReader()
   reader.readAsDataURL(file)
@@ -104,20 +152,42 @@ const qrcodeResult = (image: any) => {
   return decodedResult?.data
 }
 
-import QrCode from 'qrcode.vue'
+// 添加清除右上角的函数
+const qrcodeDom = ref<any>()
+const qrSize = ref<number>(0)
+const drawQR = async (qrValue: string, hide: boolean = false) => {
+  const qrDom = document.createElement('canvas')
+  await QrCode.toCanvas(qrDom, qrValue, {
+    errorCorrectionLevel: 'H',
+    width: qrSize.value,
+    margin: 0,
+    color: {
+      dark: '#000000',
+      light: '#ffffff',
+    },
+  })
+  if (hide) {
+    const ctx: any = qrDom.getContext('2d')
+    const clearWidth = (qrSize.value / 2) * (qrHideSize.value / 100)
+    ctx.clearRect(qrSize.value / 2, qrSize.value - clearWidth, qrSize.value / 2, clearWidth)
+  }
+  return qrDom.toDataURL('image/png')
+}
 
-const qrcodeDom = ref<HTMLDivElement>()
-const saveQrcode = async () => {
-  if (!qrcodeDom.value) return
-  // 将div转换为canvas
+// 下载二维码
+const downloadQrcode = async () => {
   const canvas = await html2canvas(qrcodeDom.value)
-  // 将canvas转换为dataURL
   const dataURL = canvas.toDataURL('image/png')
-  // 创建一个a标签用于下载
   const link = document.createElement('a')
   link.href = dataURL
-  link.download = 'div_content.png'
-  // 触发点击事件进行下载
+  link.download = 'PayQrcode.png'
   link.click()
 }
+
+onMounted(() => {
+  qrSize.value = qrcodeDom.value!.clientWidth
+})
 </script>
+<style lang="less" scoped>
+@import url('./Main.less');
+</style>
